@@ -58,7 +58,7 @@ function DashboardAdmin() {
 
   const pieData = kpi ? [
     { name:'Pendientes', value: kpi.pedidos_pendientes },
-    { name:'En Ruta',    value: kpi.pedidos_en_ruta    },
+    { name:'En Ruta', value: kpi.pedidos_en_ruta },
     { name:'Entregados', value: kpi.pedidos_entregados },
   ] : [];
 

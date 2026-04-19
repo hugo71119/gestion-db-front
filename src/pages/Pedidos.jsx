@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../App';
-import { getPedidos, getPedido, crearPedido, actualizarEstado, asignarRepartidor, getClientes, getRepartidoresDisp, getVehiculosDisp, pedidosCliente } from '../api';
+import { getPedidos, getPedido, crearPedido, actualizarEstado, asignarRepartidor, getClientes, getRepartidoresDisp, getVehiculosDisp, pedidosCliente, getProductos } from '../api';
 import { Plus, UserPlus, Eye, X, Package, Trash2, Bike, Truck, CheckCircle2 } from 'lucide-react';
 import Toast from '../components/Toast';
 
@@ -34,9 +34,12 @@ export default function Pedidos() {
   const [repElegido,    setRepElegido]    = useState('');
   const [vehsDisp,      setVehsDisp]      = useState([]);
   const [vehElegido,    setVehElegido]    = useState('');
-  const [saving,        setSaving]        = useState(false);
-  const [successPedido, setSuccessPedido] = useState(null);
-  const [toast,         setToast]         = useState(false);
+  const [catalogo,         setCatalogo]         = useState([]);
+  const [saving,           setSaving]           = useState(false);
+  const [successPedido,    setSuccessPedido]    = useState(null);
+  const [toast,            setToast]            = useState(false);
+  const [successAsignacion, setSuccessAsignacion] = useState(null); // { repartidor, vehiculo, folio }
+  const [toastAsignacion,   setToastAsignacion]   = useState(false);
 
   const load = () => {
     if (user?.rol === 'cliente') {
@@ -53,6 +56,7 @@ export default function Pedidos() {
   useEffect(() => { load(); }, [tab]);
   useEffect(() => {
     if (user?.rol === 'admin') getClientes().then(r => setClientes(r.data)).catch(() => {});
+    getProductos().then(r => setCatalogo(r.data)).catch(() => {});
   }, [user]);
 
   const handleSave = async (e) => {
@@ -98,7 +102,12 @@ export default function Pedidos() {
     try {
       const r = await asignarRepartidor(asignarModal, repElegido, vehElegido);
       setAsignarModal(null);
-      alert(`Repartidor: ${r.data.repartidor_asignado} · Vehículo: ${r.data.vehiculo_asignado} · Folio: ${r.data.folio_entrega}`);
+      setSuccessAsignacion({
+        repartidor: r.data.repartidor_asignado,
+        vehiculo: r.data.vehiculo_asignado,
+        folio: r.data.folio_entrega,
+      });
+      setToastAsignacion(true);
       load();
     } catch(e) { alert(e.response?.data?.error || 'Error al asignar'); }
   };
@@ -147,59 +156,130 @@ export default function Pedidos() {
         ))}
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-        {pedidos.map(p => (
-          <div key={p.pedido_id} className="bg-white rounded-xl border border-slate-100 shadow-sm p-5 hover:shadow-md transition-shadow">
-            <div className="flex items-center justify-between mb-3">
-              <span className="font-bold text-slate-900">Pedido #{p.pedido_id}</span>
-              <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${ESTADO_BADGE[p.estado] ?? 'bg-slate-100 text-slate-600'}`}>
-                {p.estado}
-              </span>
-            </div>
-            <p className="text-sm text-slate-500 mb-1.5">
-              <span className="font-medium text-slate-700">Cliente:</span> {p.cliente}
-            </p>
-            <p className="text-sm text-slate-500 mb-1.5">
-              <span className="font-medium text-slate-700">Dirección:</span> {p.direccion_entrega}
-            </p>
-            <p className="text-sm text-slate-500 mb-4">
-              <span className="font-semibold text-slate-900">${p.total}</span>
-              <span className="mx-2 text-slate-300">·</span>
-              {p.fecha_pedido?.split('T')[0]}
-            </p>
-            <div className="flex gap-2">
-              <button
-                onClick={() => abrirDetalle(p)}
-                className="flex-1 flex items-center justify-center gap-1.5 py-2 border border-slate-200 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-50 cursor-pointer bg-white transition-colors"
-              >
-                <Eye size={13}/> Detalle
-              </button>
-              {user?.rol === 'admin' && p.estado === 'Pendiente' && (
+      {/* ── Vista ADMIN: grid de tarjetas ── */}
+      {user?.rol !== 'cliente' && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+          {pedidos.map(p => (
+            <div key={p.pedido_id} className="bg-white rounded-xl border border-slate-100 shadow-sm p-5 hover:shadow-md transition-shadow">
+              <div className="flex items-center justify-between mb-3">
+                <span className="font-bold text-slate-900">Pedido #{p.pedido_id}</span>
+                <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${ESTADO_BADGE[p.estado] ?? 'bg-slate-100 text-slate-600'}`}>
+                  {p.estado}
+                </span>
+              </div>
+              <p className="text-sm text-slate-500 mb-1.5">
+                <span className="font-medium text-slate-700">Cliente:</span> {p.cliente}
+              </p>
+              <p className="text-sm text-slate-500 mb-1.5">
+                <span className="font-medium text-slate-700">Dirección:</span> {p.direccion_entrega}
+              </p>
+              <p className="text-sm text-slate-500 mb-4">
+                <span className="font-semibold text-slate-900">${p.total}</span>
+                <span className="mx-2 text-slate-300">·</span>
+                {p.fecha_pedido?.split('T')[0]}
+              </p>
+              <div className="flex gap-2">
                 <button
-                  onClick={() => abrirAsignar(p.pedido_id)}
-                  className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-blue-50 border border-blue-200 rounded-lg text-xs font-medium text-blue-700 hover:bg-blue-100 cursor-pointer transition-colors"
+                  onClick={() => abrirDetalle(p)}
+                  className="flex-1 flex items-center justify-center gap-1.5 py-2 border border-slate-200 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-50 cursor-pointer bg-white transition-colors"
                 >
-                  <UserPlus size={13}/> Asignar
+                  <Eye size={13}/> Detalle
                 </button>
-              )}
-              {p.estado === 'Pendiente' && (user?.rol === 'admin' || user?.rol === 'cliente') && (
-                <button
-                  onClick={() => handleCancelar(p.pedido_id)}
-                  className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-red-50 border border-red-200 rounded-lg text-xs font-medium text-red-600 hover:bg-red-100 cursor-pointer transition-colors"
-                >
-                  <X size={13}/> Cancelar
-                </button>
-              )}
+                {user?.rol === 'admin' && p.estado === 'Pendiente' && (
+                  <button
+                    onClick={() => abrirAsignar(p.pedido_id)}
+                    className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-blue-50 border border-blue-200 rounded-lg text-xs font-medium text-blue-700 hover:bg-blue-100 cursor-pointer transition-colors"
+                  >
+                    <UserPlus size={13}/> Asignar
+                  </button>
+                )}
+                {p.estado === 'Pendiente' && user?.rol === 'admin' && (
+                  <button
+                    onClick={() => handleCancelar(p.pedido_id)}
+                    className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-red-50 border border-red-200 rounded-lg text-xs font-medium text-red-600 hover:bg-red-100 cursor-pointer transition-colors"
+                  >
+                    <X size={13}/> Cancelar
+                  </button>
+                )}
+              </div>
             </div>
-          </div>
-        ))}
-        {pedidos.length === 0 && (
-          <div className="col-span-full flex flex-col items-center py-16 text-slate-400">
-            <Package size={40} className="mb-3 text-slate-300"/>
-            <p className="text-sm">No hay pedidos</p>
-          </div>
-        )}
-      </div>
+          ))}
+          {pedidos.length === 0 && (
+            <div className="col-span-full flex flex-col items-center py-16 text-slate-400">
+              <Package size={40} className="mb-3 text-slate-300"/>
+              <p className="text-sm">No hay pedidos</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Vista CLIENTE: lista ── */}
+      {user?.rol === 'cliente' && (
+        <div className="bg-white rounded-2xl border border-emerald-100 shadow-sm overflow-hidden">
+          {pedidos.length === 0 ? (
+            <div className="flex flex-col items-center py-16 text-slate-400">
+              <Package size={40} className="mb-3 text-slate-300"/>
+              <p className="text-sm">No tienes pedidos en esta categoría</p>
+            </div>
+          ) : (
+            <ul className="divide-y divide-slate-100">
+              {pedidos.map(p => (
+                <li key={p.pedido_id} className="flex items-center gap-4 px-5 py-4 hover:bg-emerald-50/40 transition-colors">
+
+                  {/* Ícono de estado */}
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
+                    p.estado === 'Entregado' ? 'bg-emerald-100' :
+                    p.estado === 'En ruta'   ? 'bg-blue-100'    :
+                    p.estado === 'Cancelado' ? 'bg-red-100'     : 'bg-amber-100'
+                  }`}>
+                    <Package size={18} className={
+                      p.estado === 'Entregado' ? 'text-emerald-600' :
+                      p.estado === 'En ruta'   ? 'text-blue-600'    :
+                      p.estado === 'Cancelado' ? 'text-red-500'     : 'text-amber-600'
+                    }/>
+                  </div>
+
+                  {/* Info principal */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <span className="font-semibold text-slate-800 text-sm">Pedido #{p.pedido_id}</span>
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${ESTADO_BADGE[p.estado] ?? 'bg-slate-100 text-slate-600'}`}>
+                        {p.estado}
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-500 truncate">{p.direccion_entrega}</p>
+                    <p className="text-xs text-slate-400 mt-0.5">{p.fecha_pedido?.split('T')[0]}</p>
+                  </div>
+
+                  {/* Total */}
+                  <div className="text-right flex-shrink-0 hidden sm:block">
+                    <p className="text-sm font-bold text-emerald-700">${Number(p.total).toLocaleString()}</p>
+                    <p className="text-xs text-slate-400">total</p>
+                  </div>
+
+                  {/* Acciones */}
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <button
+                      onClick={() => abrirDetalle(p)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-50 cursor-pointer bg-white transition-colors"
+                    >
+                      <Eye size={13}/> Ver
+                    </button>
+                    {p.estado === 'Pendiente' && (
+                      <button
+                        onClick={() => handleCancelar(p.pedido_id)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-red-50 border border-red-200 rounded-lg text-xs font-medium text-red-600 hover:bg-red-100 cursor-pointer transition-colors"
+                      >
+                        <X size={13}/> Cancelar
+                      </button>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
 
       {modal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
@@ -242,12 +322,24 @@ export default function Pedidos() {
               <div className="space-y-2 mb-3">
                 {form.detalles.map((d, i) => (
                   <div key={i} className="grid grid-cols-[1fr_80px_110px_80px_32px] gap-2 items-center">
-                    <input
-                      className="border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-900 outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="Ej: Caja de cartón"
+                    <select
+                      className="border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-900 outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white cursor-pointer"
                       value={d.producto}
-                      onChange={e => updateDet(i,'producto',e.target.value)}
-                    />
+                      onChange={e => {
+                        const nombre = e.target.value;
+                        const prod = catalogo.find(p => p.nombre === nombre);
+                        const rows = [...form.detalles];
+                        rows[i] = { ...rows[i], producto: nombre, ...(prod ? { precio_unitario: prod.precio } : {}) };
+                        setForm({ ...form, detalles: rows });
+                      }}
+                    >
+                      <option value="">Seleccionar producto...</option>
+                      {catalogo.map(p => (
+                        <option key={p.producto_id} value={p.nombre}>
+                          {p.nombre} — ${Number(p.precio).toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+                        </option>
+                      ))}
+                    </select>
                     <input
                       className="border border-slate-200 rounded-lg px-2 py-2 text-sm text-slate-900 text-center outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       type="number" min={1} value={d.cantidad}
@@ -486,7 +578,31 @@ export default function Pedidos() {
           </div>
         </div>
       )}
+      {successAsignacion && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl p-8 w-[420px] shadow-2xl text-center">
+            <div className="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center mx-auto mb-4">
+              <CheckCircle2 size={32} className="text-emerald-600" />
+            </div>
+            <h2 className="text-xl font-bold text-slate-900 mb-1">¡Asignación exitosa!</h2>
+            <p className="text-slate-500 text-sm mb-4">El repartidor fue asignado al pedido correctamente.</p>
+            <div className="bg-slate-50 rounded-xl p-4 text-left space-y-2 mb-6">
+              <p className="text-sm text-slate-600"><span className="font-semibold text-slate-800">Repartidor:</span> {successAsignacion.repartidor}</p>
+              <p className="text-sm text-slate-600"><span className="font-semibold text-slate-800">Vehículo:</span> {successAsignacion.vehiculo}</p>
+              <p className="text-sm text-slate-600"><span className="font-semibold text-slate-800">Folio de entrega:</span> <span className="text-indigo-600 font-bold">{successAsignacion.folio}</span></p>
+            </div>
+            <button
+              onClick={() => setSuccessAsignacion(null)}
+              className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white py-2.5 rounded-lg text-sm font-medium transition-all cursor-pointer border-none"
+            >
+              Aceptar
+            </button>
+          </div>
+        </div>
+      )}
+
       <Toast message="¡Pedido creado exitosamente!" show={toast} onClose={() => setToast(false)} />
+      <Toast message="¡Repartidor asignado exitosamente!" show={toastAsignacion} onClose={() => setToastAsignacion(false)} />
     </div>
   );
 }

@@ -40,6 +40,11 @@ export const actualizarVehiculo = (id, d) => api.put(`/vehiculos/${id}`, d);
 export const getPagos = () => api.get('/pagos/');
 export const registrarPago = (data) => api.post('/pagos/', data);
 
+export const getProductos = (params) => api.get('/productos/', { params });
+export const getCategorias = () => api.get('/productos/categorias');
+export const crearProducto = (data) => api.post('/productos/', data);
+export const actualizarProducto = (id, data) => api.put(`/productos/${id}`, data);
+
 export const getResumen = () => api.get('/reportes/resumen');
 export const getResumenRepartidor = (id) => api.get(`/reportes/resumen-repartidor/${id}`);
 export const getResumenCliente = (id) => api.get(`/reportes/resumen-cliente/${id}`);

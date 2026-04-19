@@ -30,7 +30,7 @@ export default function Login() {
     try {
       const res = await login({ tipo: rol, usuario, contrasena: pass });
       setUser(res.data);
-      navigate('/dashboard');
+      navigate('/app/dashboard');
     } catch (err) {
       setError(err.response?.data?.error || 'Credenciales incorrectas');
     } finally {

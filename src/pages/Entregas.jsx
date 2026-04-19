@@ -12,8 +12,8 @@ const EST_BADGE = {
 
 const EST_ICON = {
   'En transito': <Clock size={13}/>,
-  Entregado:     <CheckCircle size={13}/>,
-  Fallido:       <AlertCircle size={13}/>,
+  Entregado: <CheckCircle size={13}/>,
+  Fallido: <AlertCircle size={13}/>,
 };
 
 const TH = 'px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider bg-slate-50 border-b border-slate-200';
